@@ -372,6 +372,32 @@ ingress:
   ##   key:
   ##   certificate:
 
+## Configure CronJob schedule for sending reminder emails
+## ref: https://www.redmine.org/projects/redmine/wiki/RedmineReminderEmails
+mailReminder:
+  ## Whether to enable scheduled task
+  enabled: false
+
+  ## Include issues that are past due or due in the next days defines here
+  days: 3
+
+  ## CronJob schedule
+  schedule: "0 5 * * *"
+
+  ## CronJob suspend flag
+  suspend: true
+
+  image:
+    registry: docker.io
+    repository: bitnami/redmine
+    tag: 4.1.1-debian-10-r41
+    ## Specify a imagePullPolicy
+    ## Defaults to 'Always' if image tag is 'latest', else set to 'IfNotPresent'
+    ## ref: http://kubernetes.io/docs/user-guide/images/#pre-pulling-images
+    ##
+    pullPolicy: IfNotPresent
+
+
 ## Configure CronJob scheduler for receiveing emails and converting them to tasks
 ## ref: http://www.redmine.org/projects/redmine/wiki/RedmineReceivingEmails
 ##

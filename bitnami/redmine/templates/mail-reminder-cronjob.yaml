@@ -1,0 +1,93 @@
+{{- if .Values.mailReminder.enabled }}
+apiVersion: batch/v1beta1
+kind: CronJob
+metadata:
+  name: redmine-mail-reminder
+spec:
+  schedule: "{{ .Values.mailReminder.schedule }}"
+  suspend: {{ .Values.mailReminder.suspend }}
+  concurrencyPolicy: Forbid
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          restartPolicy: OnFailure
+          containers:
+          - name: {{ template "redmine.mailReminder.fullname" . }}
+            image: {{ template "redmine.mailReminder.image" . }}
+            imagePullPolicy: {{ .Values.mailReminder.image.pullPolicy | quote }}
+            command: ['/bin/bash', '-c', '. /opt/bitnami/base/helpers && . /init.sh && nami_initialize redmine && cd /opt/bitnami/redmine && exec gosu redmine bundle exec rake redmine:send_reminders days={{ .Values.mailReminder.days }} RAILS_ENV=production']
+            env:
+              {{- if .Values.extraVars }}
+              {{- toYaml .Values.extraVars | nindent 12 }}
+              {{- end }}
+              {{- if eq .Values.databaseType "mariadb" }}
+              - name: REDMINE_DB_MYSQL
+              {{- if .Values.mariadb.enabled }}
+                value: {{ template "redmine.mariadb.fullname" . }}
+              - name: REDMINE_DB_NAME
+                value: {{ .Values.mariadb.db.name | quote }}
+              - name: REDMINE_DB_USERNAME
+                value: {{ .Values.mariadb.db.user | quote }}
+              - name: REDMINE_DB_PASSWORD
+                valueFrom:
+                  secretKeyRef:
+                    name: {{ template "redmine.mariadb.fullname" . }}
+                    key: mariadb-password
+              {{- else }}
+                value: {{ .Values.externalDatabase.host | quote }}
+              {{- end }}
+              {{- else if eq .Values.databaseType "postgresql" }}
+              - name: REDMINE_DB_POSTGRES
+              {{- if .Values.postgresql.enabled }}
+                value: {{ template "redmine.postgresql.fullname" . }}
+              - name: REDMINE_DB_NAME
+                value: {{ .Values.postgresql.postgresqlDatabase | quote }}
+              - name: REDMINE_DB_USERNAME
+                value: {{ .Values.postgresql.postgresqlUsername | quote }}
+              - name: REDMINE_DB_PASSWORD
+                valueFrom:
+                  secretKeyRef:
+                    name: {{ template "redmine.postgresql.fullname" . }}
+                    key: postgresql-password
+              {{- else }}
+                value: {{ .Values.externalDatabase.host | quote }}
+              {{- end }}
+              {{- end }}
+              {{- if or (and (eq .Values.databaseType "mariadb") (not .Values.mariadb.enabled)) (and (eq .Values.databaseType "postgresql") (not .Values.postgresql.enabled)) }}
+              - name: REDMINE_DB_NAME
+                value: {{ .Values.externalDatabase.name | quote }}
+              - name: REDMINE_DB_USERNAME
+                value: {{ .Values.externalDatabase.user | quote }}
+              - name: REDMINE_DB_PASSWORD
+                valueFrom:
+                  secretKeyRef:
+                    name: {{ template "redmine.secretName" . }}
+                    key: external-db-password
+              - name: REDMINE_DB_PORT_NUMBER
+                value: {{ .Values.externalDatabase.port | quote }}
+              {{- end }}
+              {{- if .Values.smtpHost }}
+              - name: SMTP_HOST
+                value: {{ .Values.smtpHost | quote }}
+              {{- end }}
+              {{- if .Values.smtpPort }}
+              - name: SMTP_PORT
+                value: {{ .Values.smtpPort | quote }}
+              {{- end }}
+              {{- if .Values.smtpUser }}
+              - name: SMTP_USER
+                value: {{ .Values.smtpUser | quote }}
+              {{- end }}
+              {{- if .Values.smtpPassword }}
+              - name: SMTP_PASSWORD
+                valueFrom:
+                  secretKeyRef:
+                    name: {{ template "redmine.secretName" . }}
+                    key: smtp-password
+              {{- end }}
+              {{- if .Values.smtpTls }}
+              - name: SMTP_TLS
+                value: {{ .Values.smtpTls | quote }}
+              {{- end }}
+{{- end }}
